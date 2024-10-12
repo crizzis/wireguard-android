@@ -5,6 +5,9 @@
 
 package com.wireguard.android.backend;
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
@@ -35,6 +38,8 @@ import java.util.concurrent.TimeoutException;
 
 import androidx.annotation.Nullable;
 import androidx.collection.ArraySet;
+
+import static android.app.NotificationManager.IMPORTANCE_MIN;
 
 /**
  * Implementation of {@link Backend} that uses the wireguard-go userspace implementation to provide
@@ -238,7 +243,11 @@ public final class GoBackend implements Backend {
             final VpnService service;
             if (!vpnService.isDone()) {
                 Log.d(TAG, "Requesting to start VpnService");
-                context.startService(new Intent(context, VpnService.class));
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    context.startForegroundService(new Intent(context, VpnService.class));
+                } else {
+                    context.startService(new Intent(context, VpnService.class));
+                }
             }
 
             try {
@@ -392,7 +401,10 @@ public final class GoBackend implements Backend {
      * {@link android.net.VpnService} implementation for {@link GoBackend}
      */
     public static class VpnService extends android.net.VpnService {
+        private static final int FOREGROUND_ID = 1000;
+
         @Nullable private GoBackend owner;
+        public static final String WIREGUARD_CHANNEL_ID = "Wireguard";
 
         public Builder getBuilder() {
             return new Builder();
@@ -401,6 +413,21 @@ public final class GoBackend implements Backend {
         @Override
         public void onCreate() {
             vpnService.complete(this);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                var notificationManager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+                var channel = new NotificationChannel(
+                        WIREGUARD_CHANNEL_ID,
+                        "Wireguard",
+                        IMPORTANCE_MIN
+                );
+                notificationManager.createNotificationChannel(channel);
+
+                // Background message
+                var notification = new Notification.Builder(this, WIREGUARD_CHANNEL_ID)
+                        .setContentText("Wireguard VPN Service ready")
+                        .build();
+                startForeground(FOREGROUND_ID, notification);
+            }
             super.onCreate();
         }
 
