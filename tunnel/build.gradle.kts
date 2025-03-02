@@ -40,7 +40,7 @@ android {
         release {
             externalNativeBuild {
                 cmake {
-                    arguments("-DANDROID_PACKAGE_NAME=${pkg}")
+                    arguments("-DANDROID_PACKAGE_NAME=${pkg}", "-DGRADLE_USER_HOME=${project.gradle.gradleUserHomeDir}")
                 }
             }
         }

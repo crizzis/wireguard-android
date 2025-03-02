@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 #
-# Copyright © 2017-2023 WireGuard LLC. All Rights Reserved.
+# Copyright © 2017-2019 WireGuard LLC. All Rights Reserved.
 
 BUILDDIR ?= $(CURDIR)/build
 DESTDIR ?= $(CURDIR)/out
@@ -12,20 +12,20 @@ NDK_GO_ARCH_MAP_arm64 := arm64
 NDK_GO_ARCH_MAP_mips := mipsx
 NDK_GO_ARCH_MAP_mips64 := mips64x
 
-comma := ,
-CLANG_FLAGS := --target=$(TARGET) --sysroot=$(SYSROOT)
-export CGO_CFLAGS := $(CLANG_FLAGS) $(subst -mthumb,-marm,$(CFLAGS))
-export CGO_LDFLAGS := $(CLANG_FLAGS) $(patsubst -Wl$(comma)--build-id=%,-Wl$(comma)--build-id=none,$(LDFLAGS)) -Wl,-soname=libwg-go.so
+CLANG_FLAGS := --target=$(ANDROID_LLVM_TRIPLE) --gcc-toolchain=$(ANDROID_TOOLCHAIN_ROOT) --sysroot=$(ANDROID_SYSROOT)
+export CGO_CFLAGS := $(CLANG_FLAGS) $(CFLAGS)
+export CGO_LDFLAGS := $(CLANG_FLAGS) $(LDFLAGS) -Wl,-soname=libwg-go.so
+export CC := $(ANDROID_C_COMPILER)
 export GOARCH := $(NDK_GO_ARCH_MAP_$(ANDROID_ARCH_NAME))
 export GOOS := android
 export CGO_ENABLED := 1
 
-GO_VERSION := 1.21.3
+GO_VERSION := 1.16.3
 GO_PLATFORM := $(shell uname -s | tr '[:upper:]' '[:lower:]')-$(NDK_GO_ARCH_MAP_$(shell uname -m))
 GO_TARBALL := go$(GO_VERSION).$(GO_PLATFORM).tar.gz
-GO_HASH_darwin-amd64 := 27014fc69e301d7588a169ca239b3cc609f0aa1abf38528bf0d20d3b259211eb
-GO_HASH_darwin-arm64 := 65302a7a9f7a4834932b3a7a14cb8be51beddda757b567a2f9e0cbd0d7b5a6ab
-GO_HASH_linux-amd64 := 1241381b2843fae5a9707eec1f8fb2ef94d827990582c7c7c32f5bdfbfd420c8
+GO_HASH_darwin-amd64 := 6bb1cf421f8abc2a9a4e39140b7397cdae6aca3e8d36dcff39a1a77f4f1170ac
+GO_HASH_darwin-arm64 := f4e96bbcd5d2d1942f5b55d9e4ab19564da4fad192012f6d7b0b9b055ba4208f
+GO_HASH_linux-amd64 := 951a3c7c6ce4e56ad883f97d9db74d3d6d80d5fec77455c6ada6c1f7ac4776d2
 
 default: $(DESTDIR)/libwg-go.so
 
@@ -47,6 +47,6 @@ $(BUILDDIR)/go-$(GO_VERSION)/.prepared: $(GRADLE_USER_HOME)/caches/golang/$(GO_T
 
 $(DESTDIR)/libwg-go.so: export PATH := $(BUILDDIR)/go-$(GO_VERSION)/bin/:$(PATH)
 $(DESTDIR)/libwg-go.so: $(BUILDDIR)/go-$(GO_VERSION)/.prepared go.mod
-	go build -tags linux -ldflags="-X golang.zx2c4.com/wireguard/ipc.socketDirectory=/data/data/$(ANDROID_PACKAGE_NAME)/cache/wireguard -buildid=" -v -trimpath -buildvcs=false -o "$@" -buildmode c-shared
+	go build -tags linux -ldflags="-X golang.zx2c4.com/wireguard/ipc.socketDirectory=/data/data/$(ANDROID_PACKAGE_NAME)/cache/wireguard" -v -trimpath -o "$@" -buildmode c-shared
 
 .DELETE_ON_ERROR:
